@@ -19,8 +19,7 @@ class Settings(BaseSettings):
     # JWT Authentication
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_DAYS: int = 7  # Simplified auth - no refresh tokens
 
     # Invitation
     INVITATION_EXPIRE_DAYS: int = 7

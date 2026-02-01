@@ -31,7 +31,7 @@ class Invitation(Base, UUIDMixin, TimestampMixin):
     )
     role: Mapped[OrgMemberRole] = mapped_column(
         Enum(OrgMemberRole),
-        default=OrgMemberRole.MEMBER,
+        default=OrgMemberRole.member,
         nullable=False,
     )
     token: Mapped[str] = mapped_column(

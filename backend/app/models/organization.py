@@ -10,16 +10,16 @@ from app.models.base import BaseModel
 
 class OrgType(str, enum.Enum):
     """Organization type."""
-    TEAM = "team"           # Full organization (NGO)
-    PERSONAL = "personal"   # Personal workspace (future)
+    team = "team"           # Full organization (NGO)
+    personal = "personal"   # Personal workspace (future)
 
 
 class OrgMemberRole(str, enum.Enum):
     """Member role within an organization."""
-    OWNER = "owner"     # Full access, can delete org
-    ADMIN = "admin"     # Can manage sources, transforms, invite members
-    MEMBER = "member"   # Can create/edit transforms
-    VIEWER = "viewer"   # Read-only access
+    owner = "owner"     # Full access, can delete org
+    admin = "admin"     # Can manage sources, transforms, invite members
+    member = "member"   # Can create/edit transforms
+    viewer = "viewer"   # Read-only access
 
 
 class Organization(BaseModel):
@@ -48,7 +48,7 @@ class Organization(BaseModel):
     )
     org_type: Mapped[OrgType] = mapped_column(
         Enum(OrgType),
-        default=OrgType.TEAM,
+        default=OrgType.team,
         nullable=False,
     )
     settings: Mapped[dict] = mapped_column(
@@ -110,7 +110,7 @@ class OrganizationMember(BaseModel):
     )
     role: Mapped[OrgMemberRole] = mapped_column(
         Enum(OrgMemberRole),
-        default=OrgMemberRole.MEMBER,
+        default=OrgMemberRole.member,
         nullable=False,
     )
 

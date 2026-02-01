@@ -10,9 +10,9 @@ from app.models.base import BaseModel
 
 class WarehouseConnection(BaseModel):
     """
-    MotherDuck warehouse connection configuration per organization.
+    Supabase warehouse connection configuration per organization.
 
-    Each organization has one warehouse connection.
+    Each organization has one warehouse connection to their own Supabase project.
     Credentials are encrypted before storage.
     """
 
@@ -25,14 +25,20 @@ class WarehouseConnection(BaseModel):
         nullable=False,
         index=True,
     )
-    # MotherDuck database name
-    database_name: Mapped[str] = mapped_column(
-        String(255),
+    # Supabase project URL (e.g., https://abc123.supabase.co)
+    supabase_url: Mapped[str] = mapped_column(
+        String(500),
         nullable=False,
     )
-    # Encrypted access token
-    access_token_encrypted: Mapped[str] = mapped_column(
+    # Encrypted Supabase service role key
+    supabase_key_encrypted: Mapped[str] = mapped_column(
         Text,
+        nullable=False,
+    )
+    # Database schema to use (default: public)
+    schema_name: Mapped[str] = mapped_column(
+        String(100),
+        default="public",
         nullable=False,
     )
     # Connection status
