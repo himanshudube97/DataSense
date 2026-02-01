@@ -48,46 +48,42 @@ backend/
 ### Prerequisites
 
 - Python 3.12+
+- [uv](https://github.com/astral-sh/uv) (fast Python package manager)
 - PostgreSQL database (local or Supabase)
 
 ### Installation
 
-1. **Clone and navigate to backend:**
+1. **Navigate to backend:**
    ```bash
    cd dalgo-lite/backend
    ```
 
-2. **Create virtual environment:**
+2. **Create virtual environment and install dependencies:**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   uv venv
+   uv pip install -e ".[dev]"
    ```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-4. **Configure environment:**
+3. **Configure environment:**
    ```bash
    cp .env.example .env
    # Edit .env with your database credentials
    ```
 
-5. **Run migrations:**
+4. **Run migrations:**
    ```bash
-   alembic upgrade head
+   uv run alembic upgrade head
    ```
 
-6. **Seed superadmin user:**
+5. **Seed superadmin user:**
    ```bash
-   python -m app.core.seed
+   uv run python -m app.core.seed
    ```
 
 ### Running the Server
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 API documentation will be available at:
@@ -100,16 +96,16 @@ API documentation will be available at:
 
 ```bash
 # Apply all migrations
-alembic upgrade head
+uv run alembic upgrade head
 
 # Create a new migration
-alembic revision --autogenerate -m "description"
+uv run alembic revision --autogenerate -m "description"
 
 # Rollback one migration
-alembic downgrade -1
+uv run alembic downgrade -1
 
 # Rollback all migrations
-alembic downgrade base
+uv run alembic downgrade base
 ```
 
 ### Local PostgreSQL with Docker
@@ -129,20 +125,20 @@ docker run --name dalgo-postgres \
 
 ```bash
 # Format code
-ruff format .
+uv run ruff format .
 
 # Lint code
-ruff check .
+uv run ruff check .
 
 # Fix auto-fixable issues
-ruff check --fix .
+uv run ruff check --fix .
 ```
 
 ### Running Tests
 
 ```bash
-pytest
-pytest --cov=app  # With coverage
+uv run pytest
+uv run pytest --cov=app  # With coverage
 ```
 
 ## Environment Variables
