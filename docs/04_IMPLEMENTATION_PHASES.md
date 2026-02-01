@@ -1,7 +1,34 @@
 # Dalgo Lite - Implementation Phases
 
 > **Last Updated:** 2026-02-01
-> **Status:** Phase 1 - Completed
+> **Status:** Phases 1-6 Completed, Phase 7 In Progress
+> **Architecture:** DLT + Ibis + Supabase
+
+---
+
+## Architecture Overview
+
+### Key Technology Decisions
+
+| Component | Technology | Rationale |
+|-----------|------------|-----------|
+| **Ingestion** | DLT (Data Load Tool) | Lightweight Python lib, handles pagination, retries, schema inference |
+| **Transformation** | Ibis + SQLGlot | Battle-tested at Netflix, compiles Python to SQL |
+| **Warehouse** | Supabase PostgreSQL | Single database for metadata + raw data + transforms |
+| **Preview Grid** | AG Grid Community | Server-side pagination, handles millions of rows |
+| **Frontend** | Next.js 15 + React Flow | Modern React with visual pipeline builder |
+
+### Data Flow
+
+```
+Sources (Google Sheets, CSV, Kobo)
+    ↓ DLT
+Supabase (org_{id}.source_{name})
+    ↓ Ibis
+Supabase (org_{id}.transform_{name})
+    ↓
+AG Grid Preview / Export
+```
 
 ---
 
@@ -27,27 +54,6 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Future Model (V2 - Self Signup)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  User signs up → Auto-creates Personal Workspace            │
-│         │                                                   │
-│         ▼                                                   │
-│  Personal workspace (limited, 90-day inactive cleanup)      │
-│         │                                                   │
-│         ▼                                                   │
-│  Create Team Org (requires inviting 1+ member)              │
-│         OR                                                  │
-│  Join existing org via invite                               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Authentication Method
-- **Type:** Username (email) + Password
-- **Token:** JWT with refresh tokens
-- **Password:** Hashed with bcrypt
-
 ### Role Hierarchy
 
 | Level | Role | Permissions |
@@ -58,12 +64,6 @@
 | Org | `member` | Create/edit own transforms, view sources |
 | Org | `viewer` | Read-only access (future) |
 
-### Multi-tenancy
-- Every resource belongs to an organization
-- Users can belong to multiple organizations
-- API requests scoped to current organization (via header/context)
-- Row-level security enforced at database level
-
 ---
 
 ## Progress Overview
@@ -71,491 +71,433 @@
 | Phase | Name | Status | Progress |
 |-------|------|--------|----------|
 | 1 | Database Design | Completed | 100% |
-| 2 | Backend Foundation | Not Started | 0% |
-| 3 | Google Sheets Integration | Not Started | 0% |
-| 4 | Data Ingestion Engine | Not Started | 0% |
-| 5 | Transformation Engine Core | Not Started | 0% |
-| 6 | Frontend Foundation | Not Started | 0% |
-| 7 | Transformation Canvas UI | Not Started | 0% |
-| 8 | Preview & Execution | Not Started | 0% |
-| 9 | Core Transformations | Not Started | 0% |
-| 10 | Polish & Production Ready | Not Started | 0% |
+| 2 | Backend Foundation | Completed | 100% |
+| 3 | Google Sheets Integration | Completed | 100% |
+| 4 | Data Ingestion (Current) | Completed | 100% |
+| 5 | Frontend Foundation | Completed | 100% |
+| 6 | Pipeline Canvas | Completed | 100% |
+| 7 | DLT Integration | Not Started | 0% |
+| 8 | Ibis Transformation Engine | Not Started | 0% |
+| 9 | Transformation UI | Not Started | 0% |
+| 10 | Pipeline Scheduling | Not Started | 0% |
+| 11 | Polish & Production | Not Started | 0% |
 
 ---
 
-## Phase 1: Database Design (PostgreSQL/Supabase)
+## Phase 1: Database Design (PostgreSQL/Supabase) - COMPLETED
 
-**Goal:** Design a scalable, extensible database schema that supports future features without breaking changes.
+**Goal:** Design a scalable, extensible database schema.
 
-**Principles:**
-- Use UUIDs for all primary keys (distributed-friendly)
-- Soft deletes with `deleted_at` timestamps
-- Audit columns on all tables (`created_at`, `updated_at`)
-- JSONB for flexible metadata/configuration
-- Foreign keys with proper cascading
-- Indexes on frequently queried columns
+### Completed Tasks
+
+- [x] Core Entity Tables (organizations, users, organization_members)
+- [x] Authentication Tables (invitations, refresh_tokens, password_reset_tokens)
+- [x] Source Management Tables (sources, source_schemas, sync_runs)
+- [x] Warehouse Tables (warehouse_connections, warehouse_tables)
+- [x] Transformation Tables (transformations, transformation_versions, transformation_runs)
+- [x] Output & Scheduling Tables (outputs, schedules)
+- [x] System Tables (audit_logs)
+- [x] Create migration files
+- [x] Seed superadmin user
+- [x] Document ERD diagram (docs/05_DATABASE_ERD.md)
+
+---
+
+## Phase 2: Backend Foundation (FastAPI) - COMPLETED
+
+**Goal:** Set up FastAPI backend with authentication.
+
+### Completed Tasks
+
+- [x] Project Setup (pyproject.toml, virtual env)
+- [x] FastAPI Application Structure
+- [x] Database Layer (SQLAlchemy 2.0 async)
+- [x] Authentication System (JWT, bcrypt)
+- [x] Authorization & Permissions (RBAC)
+- [x] Invitation System
+- [x] Core Utilities (config, logging, exceptions)
+- [x] Admin APIs (org management)
+- [x] API Versioning (/api/v1/)
+
+---
+
+## Phase 3: Google Sheets Integration - COMPLETED
+
+**Goal:** Connect to Google Sheets API.
+
+### Completed Tasks
+
+- [x] Service account auth via GOOGLE_CREDENTIALS_JSON
+- [x] Sheets API wrapper (get metadata, fetch data)
+- [x] Source Management API (add, list, preview, delete)
+- [x] Schema Inference (type detection)
+
+---
+
+## Phase 4: Data Ingestion (Current) - COMPLETED
+
+**Goal:** Load data from sources into Supabase warehouse.
+
+### Completed Tasks
+
+- [x] Supabase warehouse setup
+- [x] CSV file upload with schema inference
+- [x] Excel file support (.xlsx, .xls)
+- [x] Sync to warehouse (batch insert)
+- [x] Sync history tracking
+- [x] Warehouse API (tables, status)
+
+---
+
+## Phase 5: Frontend Foundation (Next.js) - COMPLETED
+
+**Goal:** Set up Next.js frontend with auth.
+
+### Completed Tasks
+
+- [x] Next.js 15 with App Router
+- [x] Tailwind CSS v4
+- [x] Authentication UI (login, signup)
+- [x] Protected routes
+- [x] Layout & Navigation
+- [x] State Management (Zustand)
+- [x] API client with auth
+
+---
+
+## Phase 6: Pipeline Canvas - COMPLETED
+
+**Goal:** Build visual pipeline view with React Flow.
+
+### Completed Tasks
+
+- [x] React Flow setup
+- [x] SourceNode component
+- [x] WarehouseNode component
+- [x] AddSourceNode component
+- [x] AnimatedEdge component
+- [x] Source → Warehouse connections
+- [x] Add Source Modal (CSV, Google Sheets)
+- [x] Sync trigger from node
+
+---
+
+## Phase 7: DLT Integration
+
+**Goal:** Replace current ingestion with DLT for better reliability.
 
 ### Tasks
 
-- [x] **1.1 Core Entity Tables**
-  - [x] `organizations` - Multi-tenant root entity (name, slug, type, settings)
-  - [x] `users` - User accounts (email, password_hash, is_superadmin)
-  - [x] `organization_members` - User-org membership with roles (user_id, org_id, role)
+- [ ] **7.1 DLT Setup**
+  - [ ] Install dlt package
+  - [ ] Configure PostgreSQL destination
+  - [ ] Set up org-specific schemas
 
-- [x] **1.2 Authentication Tables**
-  - [x] `invitations` - Pending invites (email, org_id, role, token, expires_at)
-  - [x] `refresh_tokens` - JWT refresh token storage (user_id, token_hash, expires_at)
-  - [x] `password_reset_tokens` - Password reset flow (user_id, token_hash, expires_at)
+- [ ] **7.2 DLT Ingestion Service**
+  ```python
+  # app/services/dlt_ingestion.py
 
-- [x] **1.3 Source Management Tables**
-  - [x] `sources` - Data source registry (Google Sheets, future: CSV, API)
-  - [x] `source_schemas` - Discovered/inferred column schemas
-  - [x] `sync_runs` - History of data sync operations
+  class DLTIngestionService:
+      async def sync_google_sheet(source_id, spreadsheet_id, sheet_name)
+      async def sync_csv(source_id, file_path)
+      async def sync_kobo(source_id, form_id, api_token)  # Future
+  ```
 
-- [x] **1.4 Warehouse Tables**
-  - [x] `warehouse_connections` - MotherDuck connection configs per org
-  - [x] `warehouse_tables` - Registry of tables in user's warehouse
+- [ ] **7.3 Update Source Sync API**
+  - [ ] Refactor `POST /sources/{id}/sync` to use DLT
+  - [ ] Add DLT load metadata tracking
+  - [ ] Handle incremental vs full refresh
 
-- [x] **1.5 Transformation Tables**
-  - [x] `transformations` - Transformation definitions
-  - [x] `transformation_versions` - Version history of recipes
-  - [x] `transformation_runs` - Execution history
-
-- [x] **1.6 Output & Scheduling Tables**
-  - [x] `outputs` - Output table definitions
-  - [x] `schedules` - Sync/transform schedules (future)
-
-- [x] **1.7 System Tables**
-  - [x] `audit_logs` - Action audit trail
-
-- [x] **1.8 Create migration files**
-- [x] **1.9 Seed superadmin user**
-- [x] **1.10 Document ERD diagram**
+- [ ] **7.4 Schema Management**
+  - [ ] Create org schemas on first source
+  - [ ] Table naming: `org_{org_id}.source_{source_id}`
+  - [ ] Track DLT metadata columns
 
 **Deliverables:**
-- SQL migration files
-- ERD diagram (Mermaid in docs)
-- Seed data script
+- DLT-based ingestion working
+- Org-specific PostgreSQL schemas
+- Improved error handling and retries
 
 ---
 
-## Phase 2: Backend Foundation (FastAPI)
+## Phase 8: Ibis Transformation Engine
 
-**Goal:** Set up a well-structured FastAPI backend with database connectivity, authentication, and core utilities.
+**Goal:** Build recipe-to-SQL engine using Ibis.
 
 ### Tasks
 
-- [ ] **2.1 Project Setup**
-  - [ ] Initialize Python project with `pyproject.toml`
-  - [ ] Set up virtual environment
-  - [ ] Configure development tools (ruff, pytest, pre-commit)
+- [ ] **8.1 Ibis Setup**
+  - [ ] Install ibis-framework with postgres backend
+  - [ ] Configure Supabase connection
 
-- [ ] **2.2 FastAPI Application Structure**
-  - [ ] Create app directory structure
-  - [ ] Configure FastAPI app with middleware
-  - [ ] Set up CORS, error handlers
-  - [ ] Health check endpoint
+- [ ] **8.2 Recipe Schema Design**
+  ```json
+  {
+    "steps": [
+      { "type": "source", "table": "source_abc123" },
+      { "type": "filter", "column": "status", "operator": "equals", "value": "Active" },
+      { "type": "group", "by": ["district"], "aggregates": [...] }
+    ]
+  }
+  ```
 
-- [ ] **2.3 Database Layer**
-  - [ ] SQLAlchemy 2.0 async setup
-  - [ ] Supabase/PostgreSQL connection configuration
-  - [ ] Base model classes with audit columns
-  - [ ] Session management
+- [ ] **8.3 Recipe to Ibis Converter**
+  ```python
+  # app/services/ibis_transform.py
 
-- [ ] **2.4 Authentication System**
-  - [ ] Password hashing (bcrypt)
-  - [ ] JWT token generation (access + refresh tokens)
-  - [ ] Token verification middleware
-  - [ ] `POST /auth/login` - Login with email/password
-  - [ ] `POST /auth/refresh` - Refresh access token
-  - [ ] `POST /auth/logout` - Invalidate refresh token
-  - [ ] `GET /auth/me` - Get current user
-  - [ ] Current org context (header or token claim)
+  class RecipeToIbisConverter:
+      def convert(recipe: dict) -> ibis.Table
+      def to_sql(recipe: dict) -> str
+      def preview(recipe: dict, limit: int, offset: int) -> dict
+      def execute(recipe: dict, output_table: str) -> dict
+  ```
 
-- [ ] **2.5 Authorization & Permissions**
-  - [ ] Role-based access control (RBAC)
-  - [ ] Permission decorators/dependencies
-  - [ ] Superadmin checks
-  - [ ] Org membership validation
+- [ ] **8.4 Supported Step Types**
+  - [ ] `source` - Load table
+  - [ ] `filter` - WHERE conditions
+  - [ ] `join` - LEFT/INNER/RIGHT/OUTER joins
+  - [ ] `group` - GROUP BY with aggregations
+  - [ ] `select` - Choose columns
+  - [ ] `sort` - ORDER BY
+  - [ ] `clean` - Trim, case changes
+  - [ ] `categorize` - CASE WHEN rules
+  - [ ] `add_column` - Calculated columns
+  - [ ] `distinct` - Remove duplicates
 
-- [ ] **2.6 Invitation System**
-  - [ ] `POST /invitations` - Create invitation (superadmin/admin only)
-  - [ ] `GET /invitations/{token}` - Validate invitation
-  - [ ] `POST /auth/signup` - Sign up via invitation
-  - [ ] Email sending (optional, can use console for dev)
-
-- [ ] **2.7 Core Utilities**
-  - [ ] Configuration management (pydantic-settings)
-  - [ ] Logging setup
-  - [ ] Exception classes
-  - [ ] Response schemas
-
-- [ ] **2.8 Admin APIs**
-  - [ ] `POST /admin/organizations` - Create organization (superadmin)
-  - [ ] `GET /admin/organizations` - List all organizations (superadmin)
-  - [ ] `GET /organizations/{id}/members` - List org members
-  - [ ] `DELETE /organizations/{id}/members/{user_id}` - Remove member
-
-- [ ] **2.9 API Versioning**
-  - [ ] Set up `/api/v1/` router structure
-  - [ ] OpenAPI documentation configuration
+- [ ] **8.5 Transformation API**
+  - [ ] `POST /transformations` - Create
+  - [ ] `GET /transformations` - List
+  - [ ] `PUT /transformations/{id}` - Update recipe
+  - [ ] `POST /transformations/{id}/preview` - Preview with pagination
+  - [ ] `POST /transformations/{id}/execute` - Materialize to table
 
 **Deliverables:**
-- Running FastAPI server
-- Full authentication flow working
-- Invitation-based signup working
-- Role-based access control implemented
-- API documentation at `/docs`
+- Recipe to SQL conversion working
+- All step types implemented
+- Preview and execute endpoints
 
 ---
 
-## Phase 3: Google Sheets Integration
+## Phase 9: Transformation UI
 
-**Goal:** Connect to Google Sheets API, list sheets, and fetch data.
+**Goal:** Build Excel-like transformation editor.
 
-### Tasks
-
-- [ ] **3.1 Google Cloud Setup**
-  - [ ] Create GCP project
-  - [ ] Enable Sheets API
-  - [ ] Create service account (for development)
-  - [ ] Download credentials JSON
-
-- [ ] **3.2 Sheets API Wrapper**
-  - [ ] Google Sheets client class
-  - [ ] List spreadsheets (from shared with service account)
-  - [ ] Get spreadsheet metadata (sheets, names)
-  - [ ] Fetch sheet data with pagination
-
-- [ ] **3.3 Source Management API**
-  - [ ] `POST /sources` - Add new Google Sheet source
-  - [ ] `GET /sources` - List all sources
-  - [ ] `GET /sources/{id}` - Get source details
-  - [ ] `GET /sources/{id}/preview` - Preview first N rows
-  - [ ] `DELETE /sources/{id}` - Remove source
-
-- [ ] **3.4 Schema Inference**
-  - [ ] Infer column types from data
-  - [ ] Handle mixed types gracefully
-  - [ ] Store inferred schema in `source_schemas`
-
-**Deliverables:**
-- Working Sheets integration
-- Source management endpoints
-- Schema inference working
-
----
-
-## Phase 4: Data Ingestion Engine
-
-**Goal:** Load data from Google Sheets into MotherDuck warehouse.
+### Reference: docs/06_TRANSFORMATION_UI.md
 
 ### Tasks
 
-- [ ] **4.1 MotherDuck Setup**
-  - [ ] Create MotherDuck account
-  - [ ] Generate access token
-  - [ ] Test connection from Python
+- [ ] **9.1 Transformation List Page**
+  ```
+  /transformations
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Transformations                         [+ New Transform]  │
+  ├─────────────────────────────────────────────────────────────┤
+  │  Name            │ Source        │ Last Run    │ Actions    │
+  │  ────────────────┼───────────────┼─────────────┼────────────│
+  │  Active Donors   │ donations     │ 2 hours ago │ Edit | Run │
+  │  Monthly Summary │ beneficiaries │ Yesterday   │ Edit | Run │
+  └─────────────────────────────────────────────────────────────┘
+  ```
 
-- [ ] **4.2 MotherDuck Client**
-  - [ ] Connection manager class
-  - [ ] Execute queries
-  - [ ] Create tables from schema
-  - [ ] Bulk insert data
-
-- [ ] **4.3 Ingestion Service**
-  - [ ] Full sync (replace all data)
-  - [ ] Incremental sync (append new rows) - future
-  - [ ] Handle schema changes
-  - [ ] Track sync runs in database
-
-- [ ] **4.4 Sync API**
-  - [ ] `POST /sources/{id}/sync` - Trigger sync
-  - [ ] `GET /sources/{id}/sync-status` - Get sync status
-  - [ ] `GET /sources/{id}/sync-history` - Sync run history
-
-- [ ] **4.5 Warehouse API**
-  - [ ] `GET /warehouse/tables` - List all tables
-  - [ ] `GET /warehouse/tables/{name}` - Table details
-  - [ ] `GET /warehouse/tables/{name}/preview` - Preview data
-
-**Deliverables:**
-- Data flowing from Sheets to MotherDuck
-- Sync history tracked
-- Warehouse exploration endpoints
-
----
-
-## Phase 5: Transformation Engine Core
-
-**Goal:** Build the recipe-to-SQL generation engine for basic transformations.
-
-### Tasks
-
-- [ ] **5.1 Recipe Schema Design**
-  - [ ] Define JSON schema for transformation recipes
-  - [ ] Node types: source, filter, select, sort, output
-  - [ ] Edge schema for node connections
-
-- [ ] **5.2 SQL Generator**
-  - [ ] Base SQL generator class
-  - [ ] CTE-based query building
-  - [ ] Filter action → WHERE clause
-  - [ ] Select action → SELECT columns
-  - [ ] Sort action → ORDER BY
-
-- [ ] **5.3 Transformation Service**
-  - [ ] Parse recipe JSON
-  - [ ] Validate recipe structure
-  - [ ] Generate SQL from recipe
-  - [ ] Execute and return results
-
-- [ ] **5.4 Transformation API**
-  - [ ] `POST /transformations` - Create transformation
-  - [ ] `GET /transformations` - List transformations
-  - [ ] `GET /transformations/{id}` - Get transformation details
-  - [ ] `PUT /transformations/{id}` - Update transformation
-  - [ ] `POST /transformations/{id}/preview` - Preview results
-  - [ ] `POST /transformations/{id}/execute` - Execute and save
-
-**Deliverables:**
-- Working SQL generation
-- Basic transformations functional
-- Preview and execute working
-
----
-
-## Phase 6: Frontend Foundation (Next.js)
-
-**Goal:** Set up Next.js frontend with authentication, basic layout, and navigation.
-
-### Tasks
-
-- [ ] **6.1 Project Setup**
-  - [ ] Initialize Next.js 15 with App Router
-  - [ ] Configure TypeScript
-  - [ ] Set up Tailwind CSS v4
-  - [ ] Configure ESLint, Prettier
-
-- [ ] **6.2 UI Foundation**
-  - [ ] Install and configure Radix UI
-  - [ ] Create base component library
-  - [ ] Design tokens (colors, spacing)
-  - [ ] Dark/light mode support
-
-- [ ] **6.3 Authentication UI**
-  - [ ] Login page (`/login`)
-  - [ ] Signup via invitation page (`/signup?token=...`)
-  - [ ] Forgot password page (future)
-  - [ ] Auth context/provider (store JWT, user info)
-  - [ ] Protected route wrapper
-  - [ ] Auto-redirect if not authenticated
-  - [ ] Token refresh logic
-
-- [ ] **6.4 Layout & Navigation**
-  - [ ] App shell with sidebar
-  - [ ] Navigation menu
-  - [ ] User menu (profile, logout, switch org)
-  - [ ] Organization switcher (if user has multiple orgs)
-  - [ ] Page layouts
-
-- [ ] **6.5 State Management**
-  - [ ] Set up Zustand stores (auth, org context)
-  - [ ] API client with auth headers
-  - [ ] SWR hooks setup with auth
-
-- [ ] **6.6 Source Management Pages**
-  - [ ] Sources list page
-  - [ ] Add source modal/page
-  - [ ] Source detail page
-  - [ ] Sync trigger UI
-
-- [ ] **6.7 Admin Pages (Superadmin only)**
-  - [ ] Organizations list page
-  - [ ] Create organization page
-  - [ ] Organization detail (members, invite)
-
-**Deliverables:**
-- Running Next.js app
-- Full authentication flow (login, signup via invite)
-- Protected routes working
-- Basic navigation working
-- Source management UI complete
-
----
-
-## Phase 7: Transformation Canvas UI
-
-**Goal:** Build the visual transformation builder using React Flow.
-
-### Tasks
-
-- [ ] **7.1 React Flow Setup**
-  - [ ] Install and configure React Flow
-  - [ ] Custom node types
-  - [ ] Custom edge types
-  - [ ] Canvas controls (zoom, pan)
-
-- [ ] **7.2 Node Components**
-  - [ ] Source node (table selector)
-  - [ ] Filter node (condition builder)
-  - [ ] Select node (column picker)
-  - [ ] Sort node (column + direction)
-  - [ ] Output node (destination)
-
-- [ ] **7.3 Action Palette**
-  - [ ] Sidebar with available actions
-  - [ ] Drag-and-drop to canvas
-  - [ ] Action categories
-
-- [ ] **7.4 Canvas Interaction**
-  - [ ] Connect nodes with edges
-  - [ ] Delete nodes/edges
-  - [ ] Node configuration panels
-  - [ ] Canvas state management (Zustand)
-
-- [ ] **7.5 Recipe Serialization**
-  - [ ] Canvas state to recipe JSON
-  - [ ] Recipe JSON to canvas state
-  - [ ] Auto-save drafts
-
-**Deliverables:**
-- Working transformation canvas
-- Nodes can be added and connected
-- Recipe serialization working
-
----
-
-## Phase 8: Preview & Execution
-
-**Goal:** Implement data preview with AG Grid and execute transformations.
-
-### Tasks
-
-- [ ] **8.1 AG Grid Setup**
-  - [ ] Install AG Grid (community edition)
-  - [ ] Configure for read-only preview
-  - [ ] Column auto-sizing
-  - [ ] Virtual scrolling for large datasets
-
-- [ ] **8.2 DuckDB-WASM Integration**
-  - [ ] Set up DuckDB-WASM in browser
-  - [ ] Load sample data for preview
-  - [ ] Execute preview queries locally
-
-- [ ] **8.3 Preview Panel**
-  - [ ] Split view: canvas + preview
-  - [ ] Real-time preview on changes
-  - [ ] Row count display
+- [ ] **9.2 AG Grid Setup**
+  - [ ] Install AG Grid Community
+  - [ ] Server-side pagination (100 rows/page)
   - [ ] Column type indicators
+  - [ ] Virtual scrolling
 
-- [ ] **8.4 Execution Flow**
-  - [ ] Execute button
-  - [ ] Progress indicator
-  - [ ] Success/error feedback
-  - [ ] Output table creation
+- [ ] **9.3 Transformation Editor Layout**
+  ```
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ← Back    "Monthly Donor Summary"             [Save] [Run ▼]  │
+  ├───────────────────┬─────────────────────────────────────────────┤
+  │  Applied Steps    │           Data Preview (AG Grid)            │
+  │  ─────────────    │  ┌─────┬─────────┬──────────┬────────────┐  │
+  │  1. donations     │  │ id  │ donor   │ amount   │ date       │  │
+  │  2. Filter        │  ├─────┼─────────┼──────────┼────────────┤  │
+  │  3. Combine       │  │ 1   │ Alice   │ $500     │ 2026-01-15 │  │
+  │                   │  │ 2   │ Bob     │ $250     │ 2026-01-14 │  │
+  │  [+ Add Step]     │  │ ... │ ...     │ ...      │ ...        │  │
+  │                   │  └─────┴─────────┴──────────┴────────────┘  │
+  ├───────────────────┴─────────────────────────────────────────────┤
+  │  [Filter] [Combine] [Summarize] [Clean] [Categorize] [More ▼]  │
+  └─────────────────────────────────────────────────────────────────┘
+  ```
 
-- [ ] **8.5 Transformation Detail Page**
-  - [ ] View transformation
-  - [ ] Edit transformation
-  - [ ] Run history
-  - [ ] Output tables list
+- [ ] **9.4 Action Modals (Excel Terminology)**
 
-**Deliverables:**
-- Live preview working
-- Transformations can be executed
-- Results visible in AG Grid
+  | Action | SQL Equivalent | Description |
+  |--------|---------------|-------------|
+  | Filter | WHERE | Keep/remove rows by condition |
+  | Combine | JOIN | Merge with another table (like VLOOKUP) |
+  | Summarize | GROUP BY | Pivot table style aggregation |
+  | Clean | String functions | Trim, case, fill blanks |
+  | Categorize | CASE WHEN | Create categories from values |
 
----
+- [ ] **9.5 Filter Modal**
+  ```
+  ┌─────────────────────────────────────────────────┐
+  │  Filter Rows                              [×]   │
+  ├─────────────────────────────────────────────────┤
+  │  Column: [status          ▼]                    │
+  │  Condition: [equals       ▼]                    │
+  │  Value: [Active           ]                     │
+  │                                                 │
+  │  [+ Add condition]                              │
+  │                                                 │
+  │              [Cancel]  [Apply Filter]           │
+  └─────────────────────────────────────────────────┘
+  ```
 
-## Phase 9: Core Transformations
+- [ ] **9.6 Combine Modal (JOIN)**
+  ```
+  ┌─────────────────────────────────────────────────┐
+  │  Combine Tables                           [×]   │
+  ├─────────────────────────────────────────────────┤
+  │  Combine with: [districts         ▼]            │
+  │                                                 │
+  │  Match where:                                   │
+  │  [district_id ▼] matches [id ▼] in districts    │
+  │                                                 │
+  │  Columns to bring:                              │
+  │  [x] district_name                              │
+  │  [x] region                                     │
+  │  [ ] population                                 │
+  │                                                 │
+  │              [Cancel]  [Apply]                  │
+  └─────────────────────────────────────────────────┘
+  ```
 
-**Goal:** Implement the full set of core transformation actions.
+- [ ] **9.7 Summarize Modal (GROUP BY)**
+  ```
+  ┌─────────────────────────────────────────────────┐
+  │  Summarize Data                           [×]   │
+  ├─────────────────────────────────────────────────┤
+  │  Group by:                                      │
+  │  [x] district                                   │
+  │  [ ] gender                                     │
+  │  [ ] age_group                                  │
+  │                                                 │
+  │  Calculate:                                     │
+  │  [Count     ▼] of [id           ▼] as [total]   │
+  │  [Sum       ▼] of [amount       ▼] as [total_$] │
+  │  [+ Add calculation]                            │
+  │                                                 │
+  │              [Cancel]  [Apply]                  │
+  └─────────────────────────────────────────────────┘
+  ```
 
-### Tasks
-
-- [ ] **9.1 Join Tables**
-  - [ ] Join node UI (table selector, key columns)
-  - [ ] Join types: inner, left, right, full
-  - [ ] SQL generation for joins
-  - [ ] Preview with joined data
-
-- [ ] **9.2 Group & Summarize**
-  - [ ] Group by node (column selector)
-  - [ ] Aggregation functions: COUNT, SUM, AVG, MIN, MAX
-  - [ ] Multiple aggregations per group
-  - [ ] SQL generation for GROUP BY
-
-- [ ] **9.3 Add Calculated Column**
-  - [ ] Expression builder UI
-  - [ ] Basic math operations
-  - [ ] String operations
-  - [ ] Conditional logic (CASE WHEN)
-  - [ ] SQL generation for expressions
-
-- [ ] **9.4 Data Cleaning**
+- [ ] **9.8 Clean Modal**
   - [ ] Trim whitespace
-  - [ ] Change case (upper, lower, title)
-  - [ ] Replace values
-  - [ ] Handle nulls
-  - [ ] SQL generation for cleaning
+  - [ ] Change case (upper/lower/title)
+  - [ ] Fill empty cells
+  - [ ] Remove duplicates
 
-- [ ] **9.5 Remove Duplicates**
-  - [ ] Dedupe node UI
-  - [ ] Select columns for uniqueness
-  - [ ] Keep first/last option
-  - [ ] SQL generation with ROW_NUMBER
+- [ ] **9.9 Categorize Modal**
+  - [ ] Rule-based categorization
+  - [ ] Default value for unmatched
 
-- [ ] **9.6 Union Tables**
-  - [ ] Union node (table selector)
-  - [ ] Union vs Union All
-  - [ ] Column mapping
-  - [ ] SQL generation for UNION
+- [ ] **9.10 Steps Panel**
+  - [ ] Show applied steps list
+  - [ ] Click to edit step
+  - [ ] Drag to reorder
+  - [ ] Delete step
+  - [ ] Preview updates on each step
 
 **Deliverables:**
-- All core transformations working
-- Complex pipelines can be built
-- Full Excel-equivalent functionality
+- Complete transformation editor
+- All action modals working
+- Real-time preview updates
+- Recipe JSON construction
 
 ---
 
-## Phase 10: Polish & Production Ready
+## Phase 10: Pipeline Scheduling
 
-**Goal:** Prepare for production deployment with error handling, testing, and documentation.
+**Goal:** Implement pipeline execution and scheduling.
 
 ### Tasks
 
-- [ ] **10.1 Error Handling**
+- [ ] **10.1 Pipeline Model**
+  ```python
+  Pipeline:
+      - name: str
+      - source_ids: list[str]
+      - transformation_ids: list[str]
+      - schedule: Schedule (optional)
+  ```
+
+- [ ] **10.2 Pipeline Service**
+  ```python
+  class PipelineService:
+      async def run_pipeline(pipeline_id: str)
+          # 1. Sync all sources (parallel)
+          # 2. Run transformations in order
+          # 3. Track run status
+
+      async def schedule_pipeline(pipeline_id, frequency, run_at)
+  ```
+
+- [ ] **10.3 Pipeline API**
+  - [ ] `POST /pipelines` - Create pipeline
+  - [ ] `GET /pipelines` - List pipelines
+  - [ ] `POST /pipelines/{id}/run` - Manual run
+  - [ ] `PUT /pipelines/{id}/schedule` - Set schedule
+
+- [ ] **10.4 Background Task Runner**
+  - [ ] Use APScheduler or Celery for scheduling
+  - [ ] Handle failures and retries
+  - [ ] Send notifications on completion/failure
+
+- [ ] **10.5 Pipeline UI**
+  - [ ] Pipeline list view
+  - [ ] Create pipeline wizard
+  - [ ] Schedule configuration
+  - [ ] Run history
+
+**Deliverables:**
+- Pipeline execution working
+- Scheduling system functional
+- Run history tracking
+
+---
+
+## Phase 11: Polish & Production
+
+**Goal:** Prepare for production deployment.
+
+### Tasks
+
+- [ ] **11.1 Error Handling**
   - [ ] User-friendly error messages
-  - [ ] Retry logic for API calls
+  - [ ] Retry logic for transient failures
   - [ ] Graceful degradation
 
-- [ ] **10.2 Testing**
-  - [ ] Backend unit tests
-  - [ ] Backend integration tests
+- [ ] **11.2 Testing**
+  - [ ] Backend unit tests (pytest)
+  - [ ] Recipe to SQL conversion tests
   - [ ] Frontend component tests
-  - [ ] E2E tests with Playwright
+  - [ ] E2E tests (Playwright)
 
-- [ ] **10.3 Performance**
+- [ ] **11.3 Performance**
   - [ ] Query optimization
   - [ ] Frontend bundle optimization
-  - [ ] Caching strategies
+  - [ ] Lazy loading for large lists
 
-- [ ] **10.4 Documentation**
+- [ ] **11.4 Documentation**
+  - [ ] User guide (for NGO users)
   - [ ] API documentation
-  - [ ] User guide
   - [ ] Deployment guide
 
-- [ ] **10.5 Deployment**
-  - [ ] Backend deployment (Railway/Render)
-  - [ ] Frontend deployment (Vercel)
+- [ ] **11.5 Deployment**
+  - [ ] Backend on Railway/Render
+  - [ ] Frontend on Vercel
   - [ ] Environment configuration
-  - [ ] CI/CD pipeline
+  - [ ] CI/CD pipeline (GitHub Actions)
 
-- [ ] **10.6 Monitoring**
+- [ ] **11.6 Monitoring**
   - [ ] Error tracking (Sentry)
   - [ ] Basic analytics
-  - [ ] Health monitoring
+  - [ ] Health checks
 
 **Deliverables:**
 - Production-ready application
@@ -566,58 +508,65 @@
 
 ## Session Log
 
-> Track what was done in each session for context.
-
 ### Session 1 - 2026-02-01
 - Created implementation phases document
 - Discussed authentication and multi-tenancy design
-- Decided: Admin-controlled onboarding for V1 (superadmin creates orgs, invites NGO admins)
-- Decided: JWT-based auth with email/password
-- Future: Self-signup with personal workspaces
-- **Completed Phase 1: Database Design**
-  - Set up backend project structure (`backend/`)
-  - Created all SQLAlchemy models (16 tables)
-  - Set up Alembic with initial migration
-  - Created seed script for superadmin
-  - Documented ERD diagram (`docs/05_DATABASE_ERD.md`)
-- Next: Phase 2 - Backend Foundation (FastAPI app, auth system)
+- Completed Phase 1: Database Design
+- Next: Phase 2 - Backend Foundation
+
+### Session 2 - 2026-02-01
+- Completed Phase 2: Backend Foundation (FastAPI, JWT auth, RBAC)
+- Completed Phase 4: Data Ingestion (Supabase warehouse)
+- Completed Phase 6: Frontend Foundation (Next.js, auth flow)
+- In Progress: Phase 3 (Google Sheets) & Phase 7 (Canvas)
+
+### Session 3 - 2026-02-01
+- Completed Phase 3: Google Sheets Integration
+- Added Excel file support (.xlsx, .xls)
+- Frontend modal for Google Sheets connection
+
+### Session 4 - 2026-02-01
+- Architecture redesign: DLT + Ibis + Supabase
+- Updated documentation:
+  - docs/02_TECH_STACK.md - Complete rewrite with DLT, Ibis
+  - docs/03_ARCHITECTURE.md - Updated with new architecture
+  - docs/04_IMPLEMENTATION_PHASES.md - Reorganized phases
+  - docs/06_TRANSFORMATION_UI.md - Created UI/UX specifications
+- Key decisions:
+  - DLT for ingestion (replaces custom Google Sheets code)
+  - Ibis for transformations (replaces custom SQL generator)
+  - AG Grid with server-side pagination (never load all data)
+  - Pipeline-based scheduling (sync all sources, then transforms)
+  - Excel terminology in UI (Filter, Combine=JOIN, Summarize=GROUP BY)
 
 ---
 
 ## Notes & Decisions
 
-### Authentication (V1)
-- **Method:** Email + Password with JWT tokens
-- **Onboarding:** Superadmin creates org → invites NGO admin → admin invites members
-- **Tokens:** Access token (short-lived) + Refresh token (long-lived, stored in DB)
-- **Password:** Hashed with bcrypt
-- **Future:** Add Google OAuth, self-signup with personal workspaces
+### Architecture (Updated)
+- **Ingestion:** DLT handles Google Sheets, CSV, KoboToolbox
+- **Transformation:** Ibis compiles to SQL, proven at Netflix scale
+- **Warehouse:** Supabase PostgreSQL (single database)
+- **UI Pattern:** Power Query-style "Applied Steps" panel
 
-### Multi-tenancy
-- Org-based isolation (each NGO = one org)
-- Users can belong to multiple orgs
-- API requests include org context (header: `X-Organization-ID` or from JWT)
-- All resources scoped to organization
+### Key Design Patterns
+1. **Recipe Pattern** - JSON recipes, not code
+2. **Ibis Compilation** - Recipe → Ibis → SQL
+3. **Server-Side Pagination** - Never load full datasets
+4. **Pipeline Execution** - Atomic: sync all, then transform all
+5. **Schema Isolation** - Each org gets own PostgreSQL schema
 
-### Role Hierarchy
-```
-superadmin (platform-level)
-    └── owner (org-level)
-        └── admin
-            └── member
-                └── viewer (future)
-```
-
-### Key Dependencies
-- Phase 2 depends on Phase 1 (database)
-- Phase 3-4 can run in parallel after Phase 2
-- Phase 5 depends on Phase 4 (needs data in warehouse)
-- Phase 7-8 depend on Phase 6 (frontend foundation)
-- Phase 9 depends on Phase 5, 7, 8
+### Excel → SQL Terminology Mapping
+| Excel Term | SQL Equivalent |
+|------------|---------------|
+| Filter | WHERE |
+| Combine (VLOOKUP) | JOIN |
+| Summarize (Pivot) | GROUP BY |
+| Clean | TRIM, UPPER, LOWER |
+| Categorize (IF) | CASE WHEN |
 
 ### Tech Stack Locked
-- Backend: FastAPI + SQLAlchemy 2.0 + Python 3.12
-- Frontend: Next.js 15 + TypeScript + Tailwind v4
-- Database: Supabase (PostgreSQL)
-- Warehouse: MotherDuck (DuckDB)
+- Backend: FastAPI + SQLAlchemy 2.0 + DLT + Ibis
+- Frontend: Next.js 15 + TypeScript + Tailwind v4 + AG Grid
+- Database: Supabase PostgreSQL (single warehouse)
 - Auth: Custom JWT (python-jose + bcrypt)

@@ -1,6 +1,6 @@
 # Dalgo Lite: Technology Stack
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** February 2026
 **Status:** Approved
 
@@ -11,43 +11,62 @@
 1. [Stack Overview](#stack-overview)
 2. [Frontend](#frontend)
 3. [Backend](#backend)
-4. [Database & Storage](#database--storage)
-5. [Data Warehouse](#data-warehouse)
-6. [Authentication](#authentication)
-7. [Infrastructure](#infrastructure)
-8. [Development Tools](#development-tools)
-9. [Third-Party Services](#third-party-services)
+4. [Ingestion Layer (DLT)](#ingestion-layer-dlt)
+5. [Transformation Layer (Ibis)](#transformation-layer-ibis)
+6. [Database & Warehouse](#database--warehouse)
+7. [Authentication](#authentication)
+8. [Infrastructure](#infrastructure)
+9. [Development Tools](#development-tools)
 
 ---
 
 ## Stack Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              FRONTEND                                    │
-│                     Next.js 15 (App Router)                             │
-│              TypeScript • Tailwind CSS • Zustand                        │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND                                        │
+│                     Next.js 15 (App Router)                                 │
+│         TypeScript • Tailwind CSS • Zustand • AG Grid • React Flow          │
+└─────────────────────────────────────────────────────────────────────────────┘
                                     │
-                                    │ REST API / WebSocket
+                                    │ REST API
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              BACKEND                                     │
-│                      Python 3.12 + FastAPI                              │
-│              SQLAlchemy • Pydantic • Celery (optional)                  │
-└─────────────────────────────────────────────────────────────────────────┘
-                    │                               │
-                    │                               │
-                    ▼                               ▼
-┌─────────────────────────────┐     ┌─────────────────────────────────────┐
-│      SUPABASE               │     │         MOTHERDUCK                  │
-│  ─────────────────────────  │     │  ───────────────────────────────    │
-│  • Authentication (OAuth)   │     │  • User's data warehouse            │
-│  • PostgreSQL (metadata)    │     │  • Transformation execution         │
-│  • Row Level Security       │     │  • 10GB free per user               │
-│  • Realtime subscriptions   │     │  • DuckDB SQL                       │
-└─────────────────────────────┘     └─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              BACKEND                                         │
+│                      Python 3.12 + FastAPI                                  │
+│                                                                             │
+│  ┌─────────────────────┐    ┌─────────────────────┐                        │
+│  │   INGESTION (DLT)   │    │ TRANSFORMATION (Ibis)│                        │
+│  │                     │    │                     │                        │
+│  │ • Google Sheets     │    │ • Recipe → Ibis     │                        │
+│  │ • KoboToolbox       │    │ • Ibis → SQLGlot    │                        │
+│  │ • CommCare          │    │ • SQLGlot → SQL     │                        │
+│  │ • CSV/Excel         │    │ • Execute on PG     │                        │
+│  └─────────────────────┘    └─────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SUPABASE (PostgreSQL)                                │
+│                                                                             │
+│  • Metadata (users, orgs, transformations)                                  │
+│  • Raw data tables (from DLT ingestion)                                     │
+│  • Transformed data tables (from Ibis execution)                            │
+│  • Authentication & Row Level Security                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Key Technology Decisions
+
+| Component | Technology | Why |
+|-----------|------------|-----|
+| **Ingestion** | DLT (Data Load Tool) | Lightweight, Python-native, handles pagination/retries |
+| **Transformation** | Ibis + SQLGlot | Battle-tested SQL generation, 20+ backends |
+| **Data Grid** | AG Grid | Excel-like UI, handles millions of rows |
+| **Warehouse** | Supabase (PostgreSQL) | Single database for everything, simpler ops |
+| **Pipeline Canvas** | React Flow | Node-based diagrams, drag-and-drop |
 
 ---
 
@@ -55,539 +74,471 @@
 
 ### Framework: Next.js 15
 
-**Why Next.js?**
-- Server Components for better performance
-- App Router for modern routing patterns
-- Excellent TypeScript support
-- Same framework as Dalgo main product (code sharing potential)
-- Large ecosystem and community
-
-**Version:** 15.x with App Router
-
 ```json
 {
   "dependencies": {
     "next": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "typescript": "^5.3.0"
   }
 }
 ```
 
-### Language: TypeScript
+### UI Libraries
 
-**Why TypeScript?**
-- Type safety for complex transformation logic
-- Better IDE support and autocomplete
-- Catch errors at compile time
-- Self-documenting code
-
-```json
-{
-  "devDependencies": {
-    "typescript": "^5.3.0",
-    "@types/react": "^19.0.0",
-    "@types/node": "^20.0.0"
-  }
-}
-```
-
-### Styling: Tailwind CSS v4
-
-**Why Tailwind?**
-- Rapid UI development
-- Consistent design system
-- Small bundle size (purged unused styles)
-- Excellent component library ecosystem
-
-```json
-{
-  "dependencies": {
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/forms": "^0.5.0"
-  }
-}
-```
-
-### State Management: Zustand
-
-**Why Zustand?**
-- Lightweight (< 1KB)
-- Simple API, minimal boilerplate
-- Works great with React 19
-- Already used in Dalgo main product
-
-```json
-{
-  "dependencies": {
-    "zustand": "^5.0.0"
-  }
-}
-```
-
-### Key UI Libraries
-
-| Library | Purpose | Why This Choice |
-|---------|---------|-----------------|
-| **[AG Grid](https://www.ag-grid.com/)** | Spreadsheet-like data grid | Best-in-class Excel-like experience, free community version |
-| **[Radix UI](https://www.radix-ui.com/)** | Accessible primitives | Unstyled, accessible, composable |
-| **[React Flow](https://reactflow.dev/)** | Transformation canvas | Node-based diagrams, drag-and-drop |
-| **[React Query Builder](https://react-querybuilder.js.org/)** | Filter/condition UI | SQL export built-in |
-| **[Lucide React](https://lucide.dev/)** | Icons | Consistent, lightweight |
-| **[Sonner](https://sonner.emilkowal.ski/)** | Toast notifications | Beautiful, simple API |
+| Library | Purpose | Why |
+|---------|---------|-----|
+| **AG Grid Community** | Spreadsheet-like data grid | Free, handles millions of rows with server-side pagination |
+| **React Flow** | Pipeline visualization | Node-based diagrams, drag-and-drop |
+| **React Query Builder** | Filter condition builder | SQL export built-in |
+| **Radix UI** | Accessible UI primitives | Unstyled, composable |
+| **Tailwind CSS v4** | Styling | Rapid development, consistent design |
+| **Zustand** | State management | Lightweight, simple API |
+| **SWR** | Data fetching | Stale-while-revalidate, caching |
 
 ```json
 {
   "dependencies": {
     "ag-grid-react": "^32.0.0",
     "ag-grid-community": "^32.0.0",
+    "@xyflow/react": "^12.0.0",
+    "react-querybuilder": "^7.0.0",
     "@radix-ui/react-dialog": "^1.0.0",
     "@radix-ui/react-dropdown-menu": "^2.0.0",
     "@radix-ui/react-select": "^2.0.0",
-    "@radix-ui/react-tabs": "^1.0.0",
-    "@xyflow/react": "^12.0.0",
-    "react-querybuilder": "^7.0.0",
+    "tailwindcss": "^4.0.0",
+    "zustand": "^5.0.0",
+    "swr": "^2.2.0",
     "lucide-react": "^0.300.0",
     "sonner": "^1.0.0"
   }
 }
 ```
 
-### Data Fetching: SWR
+### Frontend Project Structure
 
-**Why SWR?**
-- Stale-while-revalidate strategy
-- Built-in caching and deduplication
-- Real-time updates support
-- Already used in Dalgo main product
-
-```json
-{
-  "dependencies": {
-    "swr": "^2.2.0"
-  }
-}
 ```
-
-### Form Handling: React Hook Form + Zod
-
-```json
-{
-  "dependencies": {
-    "react-hook-form": "^7.50.0",
-    "zod": "^3.22.0",
-    "@hookform/resolvers": "^3.3.0"
-  }
-}
+frontend/
+├── src/
+│   ├── app/                      # Next.js App Router
+│   │   ├── (auth)/               # Public auth pages
+│   │   │   ├── login/
+│   │   │   └── signup/
+│   │   ├── (dashboard)/          # Protected pages
+│   │   │   ├── pipeline/         # Pipeline view
+│   │   │   ├── transformations/  # Transformation list & editor
+│   │   │   └── settings/
+│   │   └── layout.tsx
+│   │
+│   ├── components/
+│   │   ├── ui/                   # Base UI components
+│   │   ├── pipeline/             # Pipeline canvas components
+│   │   │   ├── PipelineCanvas.tsx
+│   │   │   ├── SourceNode.tsx
+│   │   │   └── TransformNode.tsx
+│   │   ├── transformation/       # Transformation editor
+│   │   │   ├── TransformationEditor.tsx
+│   │   │   ├── DataGrid.tsx      # AG Grid wrapper
+│   │   │   ├── StepsPanel.tsx    # Applied steps
+│   │   │   └── modals/           # Action modals
+│   │   │       ├── FilterModal.tsx
+│   │   │       ├── CombineModal.tsx
+│   │   │       ├── SummarizeModal.tsx
+│   │   │       └── CleanModal.tsx
+│   │   └── common/
+│   │
+│   ├── hooks/
+│   │   ├── useTransformation.ts
+│   │   ├── usePipeline.ts
+│   │   └── useDataPreview.ts
+│   │
+│   ├── stores/
+│   │   ├── authStore.ts
+│   │   ├── pipelineStore.ts
+│   │   └── transformationStore.ts
+│   │
+│   └── lib/
+│       ├── api.ts                # API client
+│       └── utils.ts
 ```
 
 ---
 
 ## Backend
 
-### Framework: FastAPI
-
-**Why FastAPI over Django?**
-- Async-first (better for I/O-heavy data operations)
-- Automatic OpenAPI documentation
-- Pydantic integration (validation)
-- Lighter weight than Django
-- Better suited for API-only backend
-
-**Why Python?**
-- Best ecosystem for data processing
-- Native DuckDB/MotherDuck support
-- Easy SQL generation and manipulation
-- Familiar to data engineers
+### Framework: FastAPI + Python 3.12
 
 ```
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
-python-multipart>=0.0.6
-```
-
-### ORM: SQLAlchemy 2.0
-
-**Why SQLAlchemy?**
-- Industry standard Python ORM
-- Async support in 2.0
-- Works with any SQL database
-- Powerful query builder
-
-```
-sqlalchemy>=2.0.0
-asyncpg>=0.29.0  # Async PostgreSQL driver
-```
-
-### Validation: Pydantic v2
-
-```
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
-```
-
-### Key Backend Libraries
-
-| Library | Purpose |
-|---------|---------|
-| **duckdb** | Local DuckDB operations, query building |
-| **google-api-python-client** | Google Sheets API |
-| **google-auth** | Google OAuth |
-| **sqlglot** | SQL parsing and transpilation |
-| **httpx** | Async HTTP client |
-| **python-jose** | JWT handling |
-| **passlib** | Password hashing |
-
-```
-duckdb>=0.10.0
-google-api-python-client>=2.100.0
-google-auth>=2.25.0
-google-auth-oauthlib>=1.2.0
-sqlglot>=20.0.0
-httpx>=0.26.0
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+httpx>=0.26.0
 ```
 
-### Background Tasks: Celery (Optional)
-
-For scheduled sync jobs:
-
-```
-celery>=5.3.0
-redis>=5.0.0
-```
-
-**Note:** Start without Celery, add if needed for scheduled syncs.
-
-### Project Structure
+### Backend Project Structure
 
 ```
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI application
-│   ├── config.py               # Settings management
+│   ├── main.py
+│   ├── config.py
 │   │
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── deps.py             # Dependencies (auth, db)
-│   │   ├── v1/
-│   │   │   ├── __init__.py
-│   │   │   ├── router.py
-│   │   │   ├── sources.py      # Google Sheets endpoints
-│   │   │   ├── transforms.py   # Transformation endpoints
-│   │   │   ├── warehouse.py    # MotherDuck endpoints
-│   │   │   └── users.py        # User management
+│   ├── api/v1/
+│   │   ├── auth.py
+│   │   ├── organizations.py
+│   │   ├── sources.py
+│   │   ├── pipelines.py
+│   │   └── transformations.py
 │   │
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── security.py         # Auth utilities
-│   │   ├── google_sheets.py    # Sheets API wrapper
-│   │   ├── motherduck.py       # MotherDuck client
-│   │   └── sql_generator.py    # Click actions → SQL
-│   │
-│   ├── models/
-│   │   ├── __init__.py
+│   ├── models/                   # SQLAlchemy models
 │   │   ├── user.py
 │   │   ├── organization.py
-│   │   ├── data_source.py
+│   │   ├── source.py
+│   │   ├── pipeline.py
 │   │   └── transformation.py
 │   │
-│   ├── schemas/
-│   │   ├── __init__.py
-│   │   ├── user.py
+│   ├── schemas/                  # Pydantic schemas
 │   │   ├── source.py
-│   │   ├── transform.py
-│   │   └── common.py
+│   │   ├── pipeline.py
+│   │   └── transformation.py
 │   │
 │   └── services/
-│       ├── __init__.py
-│       ├── ingestion.py        # Sheets → MotherDuck
-│       ├── transformation.py   # Execute transforms
-│       └── sync.py             # Scheduled sync logic
-│
-├── tests/
-├── alembic/                    # Database migrations
-├── requirements.txt
-├── pyproject.toml
-└── Dockerfile
+│       ├── ingestion/            # DLT integration
+│       │   ├── dlt_service.py
+│       │   ├── google_sheets.py
+│       │   ├── kobo.py
+│       │   └── commcare.py
+│       │
+│       ├── transformation/       # Ibis integration
+│       │   ├── recipe_executor.py
+│       │   ├── ibis_converter.py
+│       │   └── preview_service.py
+│       │
+│       └── pipeline/
+│           ├── pipeline_runner.py
+│           └── scheduler.py
 ```
 
 ---
 
-## Database & Storage
+## Ingestion Layer (DLT)
 
-### Metadata Database: Supabase (PostgreSQL)
+### Why DLT?
 
-**Why Supabase?**
+| Feature | Custom Code | DLT |
+|---------|-------------|-----|
+| Pagination | Write yourself | Built-in |
+| Rate limiting | Write yourself | Built-in |
+| Retries | Write yourself | Built-in |
+| Schema inference | Write yourself | Built-in |
+| Incremental loads | Write yourself | One flag |
 
-| Feature | Benefit for Dalgo Lite |
-|---------|------------------------|
-| **Managed PostgreSQL** | No database ops needed |
-| **Built-in Auth** | Google OAuth out of the box |
-| **Row Level Security** | Multi-tenant data isolation |
-| **Realtime** | Live updates for collaboration |
-| **Free Tier** | 500MB database, 50k monthly active users |
-| **REST API** | Auto-generated from schema |
+### DLT Dependencies
 
-**What We Store in Supabase:**
+```
+dlt[postgres]>=0.4.0
+```
+
+### DLT Source Configuration
+
+```python
+# services/ingestion/dlt_service.py
+import dlt
+from dlt.sources.rest_api import rest_api_source
+from dlt.sources.google_sheets import google_spreadsheet
+
+class DLTIngestionService:
+    def __init__(self, supabase_url: str, supabase_key: str):
+        self.pipeline = dlt.pipeline(
+            pipeline_name="dalgo_ingestion",
+            destination="postgres",
+            dataset_name="raw_data",
+            credentials={"connection_string": f"{supabase_url}?apikey={supabase_key}"}
+        )
+
+    def sync_google_sheets(self, spreadsheet_id: str, sheet_names: list[str]):
+        source = google_spreadsheet(
+            spreadsheet_id=spreadsheet_id,
+            sheet_names=sheet_names
+        )
+        return self.pipeline.run(source)
+
+    def sync_kobo(self, api_key: str, form_ids: list[str]):
+        source = rest_api_source({
+            "client": {
+                "base_url": "https://kf.kobotoolbox.org/api/v2/",
+                "auth": {"type": "api_key", "api_key": api_key}
+            },
+            "resources": [
+                {"name": f"form_{fid}", "endpoint": f"assets/{fid}/data"}
+                for fid in form_ids
+            ]
+        })
+        return self.pipeline.run(source)
+```
+
+---
+
+## Transformation Layer (Ibis)
+
+### Why Ibis + SQLGlot?
+
+| Feature | Custom SQL Generator | Ibis |
+|---------|---------------------|------|
+| SQL injection protection | You handle | Built-in |
+| Dialect handling | You handle | 31 dialects |
+| Edge cases (NULL, types) | You discover in prod | Already fixed |
+| Testing | You write | Community tested |
+| Backend flexibility | Locked to one DB | 20+ backends |
+
+### Ibis Dependencies
+
+```
+ibis-framework[postgres]>=8.0.0
+sqlglot>=20.0.0
+```
+
+### Recipe to Ibis Converter
+
+```python
+# services/transformation/ibis_converter.py
+import ibis
+from ibis import _
+
+class RecipeToIbisConverter:
+    def __init__(self, connection_url: str):
+        self.con = ibis.postgres.connect(url=connection_url)
+
+    def convert(self, recipe: dict) -> ibis.Table:
+        """Convert recipe JSON to Ibis expression."""
+        expr = None
+
+        for step in recipe["steps"]:
+            expr = self._apply_step(expr, step)
+
+        return expr
+
+    def _apply_step(self, expr, step: dict):
+        step_type = step["type"]
+
+        if step_type == "source":
+            return self.con.table(step["table"])
+
+        elif step_type == "filter":
+            return self._apply_filter(expr, step)
+
+        elif step_type == "select":
+            return expr.select(*step["columns"])
+
+        elif step_type == "join":
+            right = self.con.table(step["with"])
+            return expr.left_join(
+                right,
+                getattr(expr, step["left_on"]) == getattr(right, step["right_on"])
+            )
+
+        elif step_type == "group":
+            aggs = {}
+            for agg in step["aggregates"]:
+                col = getattr(expr, agg["column"])
+                fn = getattr(col, agg["function"])()
+                aggs[agg["alias"]] = fn
+            return expr.group_by(*step["by"]).aggregate(**aggs)
+
+        elif step_type == "sort":
+            col = getattr(expr, step["column"])
+            if step.get("descending"):
+                col = col.desc()
+            return expr.order_by(col)
+
+        elif step_type == "clean":
+            return self._apply_clean(expr, step)
+
+        elif step_type == "categorize":
+            return self._apply_categorize(expr, step)
+
+        elif step_type == "distinct":
+            return expr.distinct()
+
+        else:
+            raise ValueError(f"Unknown step type: {step_type}")
+
+    def _apply_filter(self, expr, step: dict):
+        column = getattr(expr, step["column"])
+        op = step["operator"]
+        value = step["value"]
+
+        ops = {
+            "equals": lambda c, v: c == v,
+            "not_equals": lambda c, v: c != v,
+            "greater_than": lambda c, v: c > v,
+            "less_than": lambda c, v: c < v,
+            "contains": lambda c, v: c.contains(v),
+            "is_null": lambda c, v: c.isnull(),
+            "is_not_null": lambda c, v: c.notnull(),
+            "in": lambda c, v: c.isin(v),
+        }
+
+        condition = ops[op](column, value)
+        return expr.filter(condition)
+
+    def _apply_clean(self, expr, step: dict):
+        mutations = {}
+        for col in step["columns"]:
+            column = getattr(expr, col)
+            for op in step["operations"]:
+                if op == "trim":
+                    column = column.strip()
+                elif op == "upper":
+                    column = column.upper()
+                elif op == "lower":
+                    column = column.lower()
+                elif op == "capitalize":
+                    column = column.capitalize()
+            mutations[col] = column
+        return expr.mutate(**mutations)
+
+    def _apply_categorize(self, expr, step: dict):
+        case_expr = ibis.case()
+        for rule in step["rules"]:
+            col = getattr(expr, rule["column"])
+            condition = self._build_condition(col, rule)
+            case_expr = case_expr.when(condition, rule["value"])
+        case_expr = case_expr.else_(step.get("default")).end()
+        return expr.mutate(**{step["name"]: case_expr})
+```
+
+### Preview Service with Pagination
+
+```python
+# services/transformation/preview_service.py
+class PreviewService:
+    def __init__(self, converter: RecipeToIbisConverter):
+        self.converter = converter
+
+    async def preview(
+        self,
+        recipe: dict,
+        page: int = 1,
+        page_size: int = 100
+    ) -> dict:
+        expr = self.converter.convert(recipe)
+
+        # Get total count
+        total = expr.count().execute()
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        paginated = expr.limit(page_size, offset=offset)
+
+        # Execute and return
+        rows = paginated.execute().to_dict('records')
+
+        return {
+            "rows": rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
+
+    def to_sql(self, recipe: dict) -> str:
+        """Generate SQL for debugging/advanced users."""
+        expr = self.converter.convert(recipe)
+        return ibis.to_sql(expr)
+
+    async def execute_and_save(self, recipe: dict, output_table: str):
+        """Execute transformation and save as table."""
+        expr = self.converter.convert(recipe)
+        sql = ibis.to_sql(expr)
+
+        # Create table from query
+        create_sql = f"CREATE TABLE {output_table} AS {sql}"
+        await self.converter.con.raw_sql(create_sql)
+
+        return {"table": output_table, "rows": expr.count().execute()}
+```
+
+---
+
+## Database & Warehouse
+
+### Supabase (PostgreSQL)
+
+**Single database for everything:**
+
+| Data Type | Schema | Purpose |
+|-----------|--------|---------|
+| Metadata | `public` | Users, orgs, pipelines, transformations |
+| Raw data | `raw_data` | Tables from DLT ingestion |
+| Transformed | `transformed` | Output tables from Ibis |
+
+### Key Tables
 
 ```sql
--- Organizations (tenants)
-CREATE TABLE organizations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    slug TEXT UNIQUE NOT NULL,
-    motherduck_token_encrypted TEXT, -- Encrypted MD credentials
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Users
-CREATE TABLE users (
-    id UUID PRIMARY KEY REFERENCES auth.users(id),
-    email TEXT NOT NULL,
-    full_name TEXT,
-    organization_id UUID REFERENCES organizations(id),
-    role TEXT DEFAULT 'member', -- 'admin', 'member'
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Data Sources (Google Sheets connections)
-CREATE TABLE data_sources (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID REFERENCES organizations(id),
-    name TEXT NOT NULL,
-    sheet_id TEXT NOT NULL,
-    sheet_tab TEXT,
-    table_name TEXT NOT NULL, -- Name in MotherDuck
-    sync_frequency TEXT DEFAULT 'manual',
-    last_synced_at TIMESTAMPTZ,
-    row_count INTEGER,
-    schema_json JSONB, -- Column names and types
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Transformations (saved pipelines)
-CREATE TABLE transformations (
+-- Pipelines
+CREATE TABLE pipelines (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES organizations(id),
     name TEXT NOT NULL,
     description TEXT,
-    canvas_json JSONB NOT NULL, -- Visual canvas state
-    steps_json JSONB NOT NULL,  -- Ordered transformation steps
-    output_table TEXT,
+    schedule TEXT DEFAULT 'manual',  -- 'manual', 'hourly', 'daily'
+    last_run_at TIMESTAMPTZ,
+    status TEXT DEFAULT 'idle',
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Transformation Steps (for history/debugging)
-CREATE TABLE transformation_steps (
+-- Sources (linked to pipeline)
+CREATE TABLE sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transformation_id UUID REFERENCES transformations(id),
-    step_order INTEGER NOT NULL,
-    step_type TEXT NOT NULL, -- 'filter', 'join', 'aggregate', etc.
-    config_json JSONB NOT NULL,
-    generated_sql TEXT,
+    pipeline_id UUID REFERENCES pipelines(id),
+    organization_id UUID REFERENCES organizations(id),
+    name TEXT NOT NULL,
+    source_type TEXT NOT NULL,  -- 'google_sheets', 'kobo', 'commcare', 'csv'
+    config JSONB NOT NULL,
+    warehouse_table TEXT,
+    last_synced_at TIMESTAMPTZ,
+    row_count INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
 
-**Row Level Security Example:**
-
-```sql
--- Users can only see their organization's data
-ALTER TABLE data_sources ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users see own org data sources"
-ON data_sources FOR ALL
-USING (
-    organization_id IN (
-        SELECT organization_id FROM users WHERE id = auth.uid()
-    )
+-- Transformations
+CREATE TABLE transformations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pipeline_id UUID REFERENCES pipelines(id),
+    organization_id UUID REFERENCES organizations(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    recipe JSONB NOT NULL,
+    output_table TEXT,
+    depends_on TEXT[],  -- Source tables this transform needs
+    run_order INTEGER,
+    last_run_at TIMESTAMPTZ,
+    row_count INTEGER,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
-
-### Supabase Setup
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Initialize project
-supabase init
-
-# Start local development
-supabase start
-
-# Deploy to production
-supabase link --project-ref <project-id>
-supabase db push
-```
-
-**Environment Variables:**
-
-```env
-# Supabase
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Backend only
-```
-
----
-
-## Data Warehouse
-
-### MotherDuck (User's Account)
-
-**Why MotherDuck?**
-
-| Feature | Benefit |
-|---------|---------|
-| **10GB Free** | Generous for NGO datasets |
-| **DuckDB Compatible** | Modern SQL, fast analytics |
-| **Serverless** | No infrastructure to manage |
-| **Shareable** | Team collaboration built-in |
-| **Data Stays with User** | They own their warehouse |
-
-**Integration Approach:**
-
-```python
-# User connects their MotherDuck account via OAuth
-# We store encrypted token in Supabase
-# All queries run in their MotherDuck instance
-
-import duckdb
-
-def get_user_connection(user_id: str) -> duckdb.DuckDBPyConnection:
-    """Get connection to user's MotherDuck instance."""
-    token = get_encrypted_token(user_id)  # From Supabase
-    return duckdb.connect(f"md:?motherduck_token={token}")
-```
-
-**What Gets Stored in MotherDuck:**
-
-```sql
--- Raw data from Google Sheets
-CREATE TABLE raw_beneficiaries AS
-SELECT * FROM read_csv('data.csv');
-
--- Transformed outputs
-CREATE TABLE transformed_beneficiary_summary AS
-SELECT
-    district,
-    COUNT(*) as total_beneficiaries,
-    AVG(age) as avg_age
-FROM raw_beneficiaries
-WHERE status = 'Active'
-GROUP BY district;
-```
-
-### DuckDB-WASM (Browser Preview)
-
-For instant previews without hitting MotherDuck:
-
-```typescript
-import * as duckdb from '@duckdb/duckdb-wasm';
-
-// Initialize in browser
-const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
-const worker = new Worker(bundle.mainWorker);
-const logger = new duckdb.ConsoleLogger();
-const db = new duckdb.AsyncDuckDB(logger, worker);
-await db.instantiate(bundle.mainModule);
-
-// Run preview queries
-const conn = await db.connect();
-const result = await conn.query(`
-    SELECT * FROM uploaded_data LIMIT 100
-`);
 ```
 
 ---
 
 ## Authentication
 
-### Supabase Auth + Google OAuth
+### JWT-based with Supabase
 
-**Flow:**
-
-```
-┌─────────┐     ┌─────────────┐     ┌──────────────┐     ┌───────────┐
-│  User   │────▶│  Next.js    │────▶│   Supabase   │────▶│  Google   │
-│ Browser │     │  Frontend   │     │    Auth      │     │  OAuth    │
-└─────────┘     └─────────────┘     └──────────────┘     └───────────┘
-                      │                    │
-                      │   JWT Token        │
-                      │◀───────────────────│
-                      │                    │
-                      ▼                    │
-               ┌─────────────┐             │
-               │  FastAPI    │◀────────────┘
-               │  Backend    │   Verify JWT
-               └─────────────┘
-```
-
-**Why Google OAuth?**
-
-1. **Single Sign-On:** Users already have Google accounts
-2. **Sheets Access:** Same OAuth grants Sheets API access
-3. **No Password Management:** Reduced security burden
-4. **Trust:** NGOs trust Google
-
-**Frontend Implementation:**
-
-```typescript
-// lib/supabase.ts
-import { createBrowserClient } from '@supabase/ssr'
-
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-// Login with Google
-export async function signInWithGoogle() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      scopes: 'https://www.googleapis.com/auth/spreadsheets.readonly',
-      redirectTo: `${window.location.origin}/auth/callback`
-    }
-  })
-}
-```
-
-**Backend JWT Verification:**
-
-```python
-# app/api/deps.py
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer
-from jose import jwt, JWTError
-
-security = HTTPBearer()
-
-async def get_current_user(
-    credentials = Depends(security)
-) -> dict:
-    """Verify Supabase JWT and return user."""
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated"
-        )
-        return payload
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token"
-        )
-```
+- Email/password authentication
+- Invitation-based signup for organizations
+- JWT tokens with refresh
+- Role-based access control (owner, admin, member)
 
 ---
 
@@ -596,217 +547,33 @@ async def get_current_user(
 ### Development
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    LOCAL DEVELOPMENT                         │
-├─────────────────────────────────────────────────────────────┤
-│  Next.js (npm run dev)          → localhost:3000            │
-│  FastAPI (uvicorn)              → localhost:8000            │
-│  Supabase Local (supabase start) → localhost:54321          │
-│  DuckDB (local file)            → ./dev.duckdb              │
-└─────────────────────────────────────────────────────────────┘
+Frontend:  npm run dev        → localhost:3000
+Backend:   uvicorn app:main   → localhost:8000
+Database:  Supabase Local     → localhost:54321
 ```
 
 ### Production
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      PRODUCTION                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────┐                                        │
-│  │    Vercel       │  ← Next.js frontend                    │
-│  │  (Free tier)    │                                        │
-│  └────────┬────────┘                                        │
-│           │                                                 │
-│           ▼                                                 │
-│  ┌─────────────────┐     ┌─────────────────┐               │
-│  │   Railway /     │     │    Supabase     │               │
-│  │   Render        │────▶│   (Free tier)   │               │
-│  │   (FastAPI)     │     │   PostgreSQL    │               │
-│  └────────┬────────┘     └─────────────────┘               │
-│           │                                                 │
-│           ▼                                                 │
-│  ┌─────────────────┐                                        │
-│  │   MotherDuck    │  ← User's own account                 │
-│  │  (User's data)  │                                        │
-│  └─────────────────┘                                        │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Hosting Recommendations
-
-| Component | Service | Tier | Monthly Cost |
-|-----------|---------|------|--------------|
-| Frontend | Vercel | Free/Pro | $0-20 |
-| Backend | Railway | Starter | $0-20 |
-| Database | Supabase | Free | $0 |
-| Data Warehouse | MotherDuck | Free (user's) | $0 |
-
-**Total infrastructure cost: $0-40/month** for significant scale.
-
----
-
-## Development Tools
-
-### Code Quality
-
-```json
-{
-  "devDependencies": {
-    "eslint": "^8.56.0",
-    "eslint-config-next": "^15.0.0",
-    "prettier": "^3.2.0",
-    "prettier-plugin-tailwindcss": "^0.5.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0"
-  }
-}
-```
-
-**Python:**
-
-```
-ruff>=0.1.0           # Fast linter
-black>=24.0.0         # Formatter
-mypy>=1.8.0           # Type checking
-pytest>=8.0.0         # Testing
-pytest-asyncio>=0.23.0
-```
-
-### Testing
-
-**Frontend:**
-
-```json
-{
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/jest-dom": "^6.0.0",
-    "playwright": "^1.41.0"
-  }
-}
-```
-
-**Backend:**
-
-```
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-pytest-cov>=4.1.0
-httpx>=0.26.0  # For testing FastAPI
-```
-
-### CI/CD
-
-**GitHub Actions:**
-
-```yaml
-# .github/workflows/ci.yml
-name: CI
-
-on: [push, pull_request]
-
-jobs:
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
-
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: pip install -r requirements.txt
-      - run: ruff check .
-      - run: mypy .
-      - run: pytest --cov
-```
-
----
-
-## Third-Party Services
-
-### Required
-
-| Service | Purpose | Free Tier |
-|---------|---------|-----------|
-| **Google Cloud** | Sheets API, OAuth | 100 requests/100 sec |
-| **Supabase** | Auth, metadata DB | 500MB, 50k MAU |
-| **MotherDuck** | Data warehouse | 10GB per user |
-
-### Optional
-
-| Service | Purpose | When to Add |
-|---------|---------|-------------|
-| **Sentry** | Error tracking | At launch |
-| **PostHog** | Product analytics | For growth |
-| **Resend** | Transactional email | For notifications |
-
----
-
-## Environment Variables
-
-### Frontend (.env.local)
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-
-# Backend API
-NEXT_PUBLIC_API_URL=http://localhost:8000
-
-# Feature flags
-NEXT_PUBLIC_ENABLE_DEBUG=false
-```
-
-### Backend (.env)
-
-```env
-# App
-APP_ENV=development
-DEBUG=true
-SECRET_KEY=your-secret-key
-
-# Supabase
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_JWT_SECRET=your-jwt-secret
-
-# Google
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=xxx
-
-# MotherDuck (for testing only, users bring their own)
-MOTHERDUCK_TOKEN=md_xxx
-
-# Redis (if using Celery)
-REDIS_URL=redis://localhost:6379/0
-```
+| Component | Service | Cost |
+|-----------|---------|------|
+| Frontend | Vercel | Free |
+| Backend | Railway/Render | $0-20/mo |
+| Database | Supabase | Free tier |
 
 ---
 
 ## Version Summary
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| Node.js | 20 LTS | Required for Next.js 15 |
-| Python | 3.12 | Latest stable |
-| Next.js | 15.x | App Router |
-| FastAPI | 0.109+ | Async support |
-| PostgreSQL | 15+ | Via Supabase |
-| DuckDB | 0.10+ | MotherDuck compatible |
+| Component | Version |
+|-----------|---------|
+| Node.js | 20 LTS |
+| Python | 3.12 |
+| Next.js | 15.x |
+| FastAPI | 0.109+ |
+| DLT | 0.4+ |
+| Ibis | 8.0+ |
+| PostgreSQL | 15+ (Supabase) |
+| AG Grid | 32.x (Community) |
 
 ---
 
